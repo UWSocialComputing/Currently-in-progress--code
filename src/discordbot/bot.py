@@ -63,7 +63,8 @@ async def show_help(ctx):
                  '/summarize #channel-name - Summarize messages in a channel\n'
                  '/bookmark username - Bookmark messages from a specific user\n'
                  '/remove bookmark - Stop bookmarking messages from specific users\n'
-                 'Use /help to view this message again.')
+                 # add alarm commands later on 
+                 'Use /bothelp to view this message again.')
     await ctx.send(help_text)
 
 bot.run(token)
