@@ -7,6 +7,8 @@ import dateparser
 from datetime import datetime, timezone
 import pytz
 import openai
+import pymongo
+from pymongo import MongoClient
 
 # set timezone to PST for alarm functionality
 pacific_tz = pytz.timezone('America/Los_Angeles')
@@ -24,6 +26,14 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 # temporary storages
 user_keywords = {}
 user_reminders = {}
+
+mongo_url = "mongodb+srv://sathshr:<password>@prioritizebotcluster.qn8j3o2.mongodb.net/"
+# navigating to cluster
+cluster = MongoClient(mongo_url)
+# connecting to database
+db = cluster["prioritize_bot"]
+# connecting to collection
+collection = db["keywords"]
 
 @bot.event
 async def on_ready():
