@@ -258,37 +258,41 @@ async def list_reminders(ctx):
         await ctx.send('You have no reminders set.')
 
 @bot.command(name='summarize')
-async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 100):
+async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 50):
     """
-    Summarizes the last 100 messages in the specified channel.
+    Summarizes the specified number of the latest messages in the given channel.
 
     :param ctx: The context under which the command is executed.
-    :param channel: The target channel to summarize messages from.
-    :param num_messages: The number of messages to fetch and summarize (default is 5).
+    :param channel: The Discord TextChannel to summarize messages from.
+    :param num_messages: The number of messages to fetch and summarize. Defaults to 50 if not specified.
     """
     if not channel:
         await ctx.send("Channel not found.")
         return
 
-    # fetch last 100 messages from the channel
-    messages = await channel.history(limit=num_messages).flatten()
-    
-    text = ""
-    for message in messages:
-        text += message.content + "\n"
+    messages = []
+    async for message in channel.history(limit=num_messages):
+        messages.append(message.content)
 
-    # use OpenAI API to summarize the messages
-    response = openai.Completion.create(
-        engine="davinci", # this is not working :(
-        prompt=f"Summarize the following messages:\n\n{text}",
-        temperature=0.7,
-        max_tokens=150,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0
-    )
+    text = " ".join(messages)
 
-    summary = response.choices[0].text.strip()
-    await ctx.send(f"Summary of the last {num_messages} messages in {channel.mention}:\n\n{summary}")
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Summarize the following messages:"},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.5,
+            max_tokens=1024,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0
+        )
+        summary = response.choices[0].message['content']
+        await ctx.send(f"Summary of the last {num_messages} messages in {channel.mention}:\n\n{summary}")
+    except Exception as e:
+        await ctx.send(f"Error summarizing messages: {str(e)}")
+
 
 bot.run(token)
