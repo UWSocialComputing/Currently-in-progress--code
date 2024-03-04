@@ -101,11 +101,11 @@ async def add_keyword(ctx, *, keyword):
     :param keyword: The keyword that the user wants to track.
     :return: None. It''ll send a confirmation message to the user's channel.
     """
-    user_id = str(ctx.author.id)  # MongoDB uses strings for keys by default
+    user_id = str(ctx.author.id)
     # Check if the user already has keywords stored
     user_doc = collection.find_one({"user_id": user_id})
     if user_doc:
-        # If the user exists, add the new keyword to their list (if it's not already there)
+        # If the user exists, add the new keyword to their list (if it's not already there!)
         if keyword not in user_doc['keywords']:
             collection.update_one({"user_id": user_id}, {"$push": {"keywords": keyword}})
             await ctx.send(f'Keyword "{keyword}" added to your notifications list!')
@@ -129,12 +129,16 @@ async def remove_keyword(ctx, *, keyword):
     :param keyword: The keyword that the user wants to stop tracking.
     :return: None. It sends a confirmation or error message to the user's channel.
     """
-    user_id = ctx.author.id
-    if user_id in user_keywords and keyword in user_keywords[user_id]:
-        user_keywords[user_id].remove(keyword)
-        await ctx.send(f'Keyword "{keyword}" removed from your notifications list.')
+    user_id = str(ctx.author.id)
+    result = collection.find_one_and_update(
+        {"user_id": user_id},
+        {"$pull": {"keywords": keyword}},
+        return_document=pymongo.ReturnDocument.AFTER
+    )
+    if result and keyword in result.get('keywords', []):
+        await ctx.send(f'Keyword "{keyword}" was not found in your notifications list.')
     else:
-        await ctx.send('Keyword not found in your notifications list.')
+        await ctx.send(f'Keyword "{keyword}" removed from your notifications list.')
 
 @bot.command(name='list')
 async def list_keywords(ctx):
@@ -145,9 +149,12 @@ async def list_keywords(ctx):
             that "invoked" the command.
     :return: None. Just sends a message to the user's channel with all their tracked keywords.
     """
-    user_id = ctx.author.id
-    if user_id in user_keywords and user_keywords[user_id]:
-        keywords = ', '.join(user_keywords[user_id])
+    user_id = str(ctx.author.id)
+
+    user_doc = collection.find_one({"user_id": user_id})
+
+    if user_doc and user_doc.get("keywords"):
+        keywords = ', '.join(user_doc["keywords"])
         await ctx.send(f'Your tracked keywords: {keywords}')
     else:
         await ctx.send('You are not tracking any keywords.')
@@ -176,7 +183,7 @@ async def show_help(ctx):
     )
     await ctx.send(help_text)
 
-@bot.command(name='alarm_add')
+@bot.command(name='add_reminder')
 async def add_reminder(ctx, time, *, label):
     """Adds a reminder for the user at a specified time with a given label.
 
@@ -196,11 +203,14 @@ async def add_reminder(ctx, time, *, label):
         await ctx.send('Invalid time format. Please try again.')
         return
     reminder_time = reminder_time.astimezone(pacific_tz)
-    if ctx.author.id not in user_reminders:
-        user_reminders[ctx.author.id] = []
-    user_reminders[ctx.author.id].append((reminder_time, label))
-    reminder_time_str = reminder_time.strftime('%Y-%m-%d %H:%M:%S %Z')
-    await ctx.send(f'Reminder set for {reminder_time_str} with label "{label}".')
+    user_id = str(ctx.author.id)
+    reminders_collection = db["reminders"]
+    reminders_collection.insert_one({
+        "user_id": user_id,
+        "reminder_time": reminder_time,
+        "label": label
+    })
+    await ctx.send(f'Reminder set for {reminder_time.strftime("%Y-%m-%d %H:%M:%S %Z")} with label "{label}".')
 
 @bot.command(name='remove_reminder')
 async def remove_reminder(ctx, label):
@@ -214,12 +224,10 @@ async def remove_reminder(ctx, label):
     :param label: The label of the reminder to remove.
     :return: None. Just sends a confirmation or error message to the user's channel.
     """
-    if ctx.author.id in user_reminders:
-        reminders_to_keep = []
-        for reminder in user_reminders[ctx.author.id]:
-            if reminder[1] != label:
-                reminders_to_keep.append(reminder)
-        user_reminders[ctx.author.id] = reminders_to_keep
+    user_id = str(ctx.author.id)
+    reminders_collection = db["reminders"]
+    result = reminders_collection.delete_one({"user_id": user_id, "label": label})
+    if result.deleted_count > 0:
         await ctx.send(f'Reminder with label "{label}" removed.')
     else:
         await ctx.send('No such reminder found.')
@@ -232,19 +240,19 @@ async def reminder_task():
 
     :return: None. It just sends reminders directly to users :D
     """
+    reminders_collection = db["reminders"]
     while True:
         now = datetime.now(pacific_tz)
-        for user_id, reminders in list(user_reminders.items()):
-            reminders_to_send = []
-            for reminder_time, label in reminders:
-                if reminder_time <= now:
-                    reminders_to_send.append((reminder_time, label))
-            
-            for reminder_time, label in reminders_to_send:
-                user = await bot.fetch_user(user_id)
-                if user:
-                    await user.send(f'Reminder: {label}')
-                user_reminders[user_id].remove((reminder_time, label))
+        due_reminders = reminders_collection.find({"reminder_time": {"$lte": now}})
+        
+        for reminder in due_reminders:
+            user_id = reminder["user_id"]
+            label = reminder["label"]
+            user = await bot.fetch_user(int(user_id))
+            if user:
+                await user.send(f'Reminder: {label}')
+                reminders_collection.delete_one({"_id": reminder["_id"]})
+        
         await asyncio.sleep(60)
 
 @bot.command(name='list_reminders')
@@ -258,13 +266,18 @@ async def list_reminders(ctx):
                 that "invoked" the command.
     :return: None. It just sends a message to the user's channel with all their upcoming reminders.
     """
-    user_id = ctx.author.id
-    if user_id in user_reminders and user_reminders[user_id]:
-        reminders_list = []
-        for reminder_time, label in user_reminders[user_id]:
-            reminder_time_pt = reminder_time.astimezone(pacific_tz)
-            reminder_time_str = reminder_time_pt.strftime('%Y-%m-%d %H:%M:%S %Z') # pst format
-            reminders_list.append(f'{reminder_time_str}: {label}')
+    user_id = str(ctx.author.id)
+    reminders_collection = db["reminders"]
+    user_reminders = reminders_collection.find({"user_id": user_id})
+    
+    reminders_list = []
+    for reminder in user_reminders: 
+        reminder_time = reminder["reminder_time"].astimezone(pacific_tz)
+        label = reminder["label"]
+        reminder_time_str = reminder_time.strftime('%Y-%m-%d %H:%M:%S %Z')
+        reminders_list.append(f'{reminder_time_str}: {label}')
+    
+    if reminders_list:
         reminders_text = '\n'.join(reminders_list)
         await ctx.send(f'Your reminders:\n{reminders_text}')
     else:
@@ -306,6 +319,5 @@ async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 50):
         await ctx.send(f"Summary of the last {num_messages} messages in {channel.mention}:\n\n{summary}")
     except Exception as e:
         await ctx.send(f"Error summarizing messages: {str(e)}")
-
 
 bot.run(token)
