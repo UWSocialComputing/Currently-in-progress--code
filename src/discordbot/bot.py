@@ -27,7 +27,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 user_keywords = {}
 user_reminders = {}
 
-mongo_url = "mongodb+srv://sathshr:<password>@prioritizebotcluster.qn8j3o2.mongodb.net/"
+mongo_url = ""
 # navigating to cluster
 cluster = MongoClient(mongo_url)
 # connecting to database
@@ -37,9 +37,12 @@ collection = db["keywords"]
 
 @bot.event
 async def on_ready():
-    """Indicates that the bot has successfully connected and online on Discord!"""
     print(f'Logged in as {bot.user.name}')
     bot.loop.create_task(reminder_task())
+    global user_keywords
+    user_keywords.clear()
+    for doc in collection.find({}):
+        user_keywords[doc["user_id"]] = set(doc["keywords"])
 
 @bot.event
 async def on_message(message):
@@ -98,11 +101,21 @@ async def add_keyword(ctx, *, keyword):
     :param keyword: The keyword that the user wants to track.
     :return: None. It''ll send a confirmation message to the user's channel.
     """
-    user_id = ctx.author.id
-    if user_id not in user_keywords:
-        user_keywords[user_id] = set()
-    user_keywords[user_id].add(keyword)
-    await ctx.send(f'Keyword "{keyword}" added to your notifications list! You will now receive alerts whenever "{keyword}" is mentioned.')
+    user_id = str(ctx.author.id)  # MongoDB uses strings for keys by default
+    # Check if the user already has keywords stored
+    user_doc = collection.find_one({"user_id": user_id})
+    if user_doc:
+        # If the user exists, add the new keyword to their list (if it's not already there)
+        if keyword not in user_doc['keywords']:
+            collection.update_one({"user_id": user_id}, {"$push": {"keywords": keyword}})
+            await ctx.send(f'Keyword "{keyword}" added to your notifications list!')
+        else:
+            await ctx.send(f'Keyword "{keyword}" is already in your notifications list.')
+    else:
+        # If the user doesn't exist, create a new document for them
+        collection.insert_one({"user_id": user_id, "keywords": [keyword]})
+        await ctx.send(f'Keyword "{keyword}" added to your notifications list! You will now receive alerts whenever "{keyword}" is mentioned.')
+
 
 @bot.command(name='remove')
 async def remove_keyword(ctx, *, keyword):
@@ -250,7 +263,7 @@ async def list_reminders(ctx):
         reminders_list = []
         for reminder_time, label in user_reminders[user_id]:
             reminder_time_pt = reminder_time.astimezone(pacific_tz)
-            reminder_time_str = reminder_time_pt.strftime('%Y-%m-%d %H:%M:%S %Z') # testing pst format because idk utc
+            reminder_time_str = reminder_time_pt.strftime('%Y-%m-%d %H:%M:%S %Z') # pst format
             reminders_list.append(f'{reminder_time_str}: {label}')
         reminders_text = '\n'.join(reminders_list)
         await ctx.send(f'Your reminders:\n{reminders_text}')
