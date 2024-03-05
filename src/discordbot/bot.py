@@ -320,4 +320,51 @@ async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 50):
     except Exception as e:
         await ctx.send(f"Error summarizing messages: {str(e)}")
 
+
+@bot.command(name='add_bookmark')
+async def add_bookmark(ctx, user: discord.Member):
+
+    """Allows a user to add a bookmark to keep track of messages from a specific mentioned user.
+
+    When a message is sent from this user, the bot sends a notification to the user through
+    private messages.
+
+    :param ctx: Discord bot commands represents the "context" of the command. 
+                It basically provides the details about the message, channel, server, and user
+                that "invoked" the command.
+    :param user:discord.Member: The mentioned user to add a bookmark for.
+    :return: None. It''ll send a confirmation message to the user's channel.
+    """
+
+    user_id = str(ctx.author.id)
+    # user ID of mentioned user to bookmark
+    user_id_bookmark = str(user.id)
+
+    bookmarks_collection = db["bookmarks"]
+
+    try:
+        # If the user exists, add the new bookmark to their list (if it's not already there!)
+        user_doc = bookmarks_collection.find_one({"user_id": user_id})
+
+        if user_doc:
+            # If the mentioned user is not bookmarked, add new bookmark to document
+            if user_id_bookmark not in user_doc.get('bookmarks', []):
+                bookmarks_collection.update_one(
+                    {"user_id": user_id},
+                    {"$push": {"bookmarks": user_id_bookmark}}
+                )
+                await ctx.send(f'{user.display_name} has been added to your bookmarks!')
+            else:
+                # If the mentioned user is already bookmarked
+                await ctx.send(f'{user.display_name} is already in your bookmarks.')
+        else:
+            # If the user doesn't exist, create a new document for them
+            bookmarks_collection.insert_one({"user_id": user_id, "bookmarks": [user_id_bookmark]})
+            await ctx.send(f'{user.display_name} is added to your bookmarks! You will receive notifications when {user.display_name} sends messages.')
+
+    except Exception as e:
+        print(f"Error adding a bookmark: {e}")
+        await ctx.send("An error occurred while adding a new bookmark.")
+
+
 bot.run(token)
