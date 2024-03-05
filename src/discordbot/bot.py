@@ -27,7 +27,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 user_keywords = {}
 user_reminders = {}
 
-mongo_url = ""
+mongo_url = "mongodb+srv://yitongshan2016:Sdq021025@clusteryitong.xzoized.mongodb.net/"
 # navigating to cluster
 cluster = MongoClient(mongo_url)
 # connecting to database
@@ -384,8 +384,8 @@ async def list_bookmarks(ctx):
         if user_bookmarks:
             bookmarks_list = user_bookmarks.get("bookmarks", [])
             if bookmarks_list:
-                # Convert user IDs to mention strings
-                bookmark_mentions = [f"<@{bookmark}>" for bookmark in bookmarks_list]
+                unique_bookmarks = list(set(bookmarks_list))
+                bookmark_mentions = [f"<@{bookmark}>" for bookmark in unique_bookmarks]
                 bookmarks_text = '\n'.join(bookmark_mentions)
                 await ctx.send(f'Your bookmarks:\n{bookmarks_text}')
             else:
