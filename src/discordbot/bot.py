@@ -27,7 +27,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 user_keywords = {}
 user_reminders = {}
 
-mongo_url = ""
+mongo_url = "mongodb+srv://yitongshan2016:Sdq021025@clusteryitong.xzoized.mongodb.net/"
 # navigating to cluster
 cluster = MongoClient(mongo_url)
 # connecting to database
@@ -333,7 +333,7 @@ async def add_bookmark(ctx, user: discord.Member):
                 It basically provides the details about the message, channel, server, and user
                 that "invoked" the command.
     :param user:discord.Member: The mentioned user to add a bookmark for.
-    :return: None. It''ll send a confirmation message to the user's channel.
+    :return: None. It'll send a confirmation message to the user's channel.
     """
 
     user_id = str(ctx.author.id)
@@ -365,6 +365,37 @@ async def add_bookmark(ctx, user: discord.Member):
     except Exception as e:
         print(f"Error adding a bookmark: {e}")
         await ctx.send("An error occurred while adding a new bookmark.")
+
+@bot.command(name='list_bookmarks')
+async def list_bookmarks(ctx):
+    """Lists all the bookmarks for the user.
+
+    :param ctx: Discord bot commands represents the "context" of the command.
+    :return: None. It sends a message to the user's channel with all their bookmarks.
+    """
+    user_id = str(ctx.author.id)
+    
+    bookmarks_collection = db["bookmarks"]
+
+    try:
+        # Retrieve the user's bookmarks
+        user_bookmarks = bookmarks_collection.find_one({"user_id": user_id})
+
+        if user_bookmarks:
+            bookmarks_list = user_bookmarks.get("bookmarks", [])
+            if bookmarks_list:
+                # Convert user IDs to mention strings
+                bookmark_mentions = [f"<@{bookmark}>" for bookmark in bookmarks_list]
+                bookmarks_text = '\n'.join(bookmark_mentions)
+                await ctx.send(f'Your bookmarks:\n{bookmarks_text}')
+            else:
+                await ctx.send('You do not have any bookmarks.')
+        else:
+            await ctx.send('You do not have any bookmarks.')
+
+    except Exception as e:
+        print(f"Error listing bookmarks: {e}")
+        await ctx.send("An error occurred while listing bookmarks.")
 
 
 bot.run(token)
