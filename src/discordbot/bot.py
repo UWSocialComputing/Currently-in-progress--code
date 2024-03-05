@@ -27,7 +27,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 user_keywords = {}
 user_reminders = {}
 
-mongo_url = "mongodb+srv://yitongshan2016:Sdq021025@clusteryitong.xzoized.mongodb.net/"
+mongo_url = ""
 # navigating to cluster
 cluster = MongoClient(mongo_url)
 # connecting to database
