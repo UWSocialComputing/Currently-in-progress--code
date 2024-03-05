@@ -25,6 +25,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 
 # temporary storages
 user_keywords = {}
+user_bookmarks = {}
 user_reminders = {}
 
 mongo_url = ""
@@ -53,11 +54,25 @@ async def on_message(message):
     """
     if message.author == bot.user:
         return
+    
+    # Keyword notification
     for user_id, keywords in user_keywords.items():
         if any(keyword.lower() in message.content.lower() for keyword in keywords):
             user = await bot.fetch_user(user_id)
             if user:
-                await user.send(f'Keyword found in message: "{message.content}"\nChannel: {message.channel.name}')
+                await user.send(f'Keyword found in message from {message.author.display_name}: "{message.content}"\nChannel: {message.channel.name}')
+        print("keyword message sent to dm")
+
+    
+    # Bookmark notification
+    for user_id, bookmarks in user_bookmarks.items():
+        for bookmark in bookmarks:
+            if str(message.author.id) == bookmark:
+                user = await bot.fetch_user(user_id)
+                if user:
+                    await user.send(f'Bookmark notification:\nMessage from {message.author.display_name}:\n{message.content}')
+        print("bookmark message sent to dm")
+    
     await bot.process_commands(message)
 
 @bot.event
