@@ -353,14 +353,14 @@ async def add_bookmark(ctx, user: discord.Member):
                     {"user_id": user_id},
                     {"$push": {"bookmarks": user_id_bookmark}}
                 )
-                await ctx.send(f'{user.display_name} has been added to your bookmarks!')
+                await ctx.send(f'{user.mention} has been added to your bookmarks!')
             else:
                 # If the mentioned user is already bookmarked
-                await ctx.send(f'{user.display_name} is already in your bookmarks.')
+                await ctx.send(f'{user.mention} is already in your bookmarks.')
         else:
             # If the user doesn't exist, create a new document for them
             bookmarks_collection.insert_one({"user_id": user_id, "bookmarks": [user_id_bookmark]})
-            await ctx.send(f'{user.display_name} is added to your bookmarks! You will receive notifications when {user.display_name} sends messages.')
+            await ctx.send(f'{user.mention} is added to your bookmarks! You will receive notifications when {user.mention} sends messages.')
 
     except Exception as e:
         print(f"Error adding a bookmark: {e}")
@@ -393,7 +393,7 @@ async def remove_bookmark(ctx, user: discord.Member):
         
         # Successfully removed user bookmark
         if result.modified_count > 0:
-            await ctx.send(f'{user.display_name} has been removed from your bookmarks.')
+            await ctx.send(f'{user.mention} has been removed from your bookmarks.')
         else:
             await ctx.send('No such bookmark found.')
     except Exception as e:
