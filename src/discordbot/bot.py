@@ -366,6 +366,40 @@ async def add_bookmark(ctx, user: discord.Member):
         print(f"Error adding a bookmark: {e}")
         await ctx.send("An error occurred while adding a new bookmark.")
 
+@bot.command(name='remove_bookmark')
+async def remove_bookmark(ctx, user: discord.Member):
+    """Allows a user to remove a bookmark from their bookmarks.
+
+    Stops the bot from sending notifications to the user for messages from bookmarked user.
+
+    :param ctx: Discord bot commands represents the "context" of the command. 
+                It basically provides the details about the message, channel, server, and user
+                that "invoked" the command.
+    :param user:discord.Member: The mentioned user to add a bookmark for.
+    :return: None. It sends a confirmation or error message to the user's channel.
+    """
+    user_id = str(ctx.author.id)
+    # user ID of mentioned user to bookmark
+    user_id_bookmark = str(user.id)
+
+    bookmarks_collection = db["bookmarks"]
+
+    try:
+        # Remove user bookmark from list of bookmarks
+        result = bookmarks_collection.update_one(
+            {"user_id": user_id},
+            {"$pull": {"bookmarks": user_id_bookmark}}
+        )
+        
+        # Successfully removed user bookmark
+        if result.modified_count > 0:
+            await ctx.send(f'{user.display_name} has been removed from your bookmarks.')
+        else:
+            await ctx.send('No such bookmark found.')
+    except Exception as e:
+        print(f"Error removing a bookmark: {e}")
+
+
 @bot.command(name='list_bookmarks')
 async def list_bookmarks(ctx):
     """Lists all the bookmarks for the user.
