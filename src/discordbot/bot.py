@@ -34,16 +34,22 @@ cluster = MongoClient(mongo_url)
 # connecting to database
 db = cluster["prioritize_bot"]
 # connecting to collection
-collection = db["keywords"]
+keyword_collection = db["keywords"]
+bookmarks_collection = db["bookmarks"]
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     bot.loop.create_task(reminder_task())
     global user_keywords
+    global user_bookmarks
     user_keywords.clear()
-    for doc in collection.find({}):
+    user_bookmarks.clear()
+    for doc in keyword_collection.find({}):
         user_keywords[doc["user_id"]] = set(doc["keywords"])
+    for doc in bookmarks_collection.find({}): 
+        user_bookmarks[doc["user_id"]] = set(doc.get("bookmarks", []))
+
 
 @bot.event
 async def on_message(message):
@@ -57,11 +63,12 @@ async def on_message(message):
     
     # Keyword notification
     for user_id, keywords in user_keywords.items():
-        if any(keyword.lower() in message.content.lower() for keyword in keywords):
-            user = await bot.fetch_user(user_id)
-            if user:
-                await user.send(f'Keyword found in message from {message.author.display_name}: "{message.content}"\nChannel: {message.channel.name}')
-        print("keyword message sent to dm")
+        for keyword in keywords:
+            if keyword.lower() in message.content.lower():
+                user = await bot.fetch_user(user_id)
+                if user:
+                    await user.send(f'Keyword "{keyword}" found in message from {message.author.display_name}: "{message.content}"\nChannel: {message.channel.name}')
+                    print(f"Keyword '{keyword}' message sent to {user.name}'s DM")
 
     
     # Bookmark notification
@@ -70,8 +77,8 @@ async def on_message(message):
             if str(message.author.id) == bookmark:
                 user = await bot.fetch_user(user_id)
                 if user:
-                    await user.send(f'Bookmark notification:\nMessage from {message.author.display_name}:\n{message.content}')
-        print("bookmark message sent to dm")
+                    await user.send(f'Bookmark notification from {message.author.display_name}:\n{message.content}')
+                    print("Bookmark message sent to dm")
     
     await bot.process_commands(message)
 
@@ -117,17 +124,17 @@ async def add_keyword(ctx, *, keyword):
     """
     user_id = str(ctx.author.id)
     # Check if the user already has keywords stored
-    user_doc = collection.find_one({"user_id": user_id})
+    user_doc = keyword_collection.find_one({"user_id": user_id})
     if user_doc:
         # If the user exists, add the new keyword to their list (if it's not already there!)
         if keyword not in user_doc['keywords']:
-            collection.update_one({"user_id": user_id}, {"$push": {"keywords": keyword}})
+            keyword_collection.update_one({"user_id": user_id}, {"$push": {"keywords": keyword}})
             await ctx.send(f'Keyword "{keyword}" added to your notifications list!')
         else:
             await ctx.send(f'Keyword "{keyword}" is already in your notifications list.')
     else:
         # If the user doesn't exist, create a new document for them
-        collection.insert_one({"user_id": user_id, "keywords": [keyword]})
+        keyword_collection.insert_one({"user_id": user_id, "keywords": [keyword]})
         await ctx.send(f'Keyword "{keyword}" added to your notifications list! You will now receive alerts whenever "{keyword}" is mentioned.')
 
 
@@ -144,7 +151,7 @@ async def remove_keyword(ctx, *, keyword):
     :return: None. It sends a confirmation or error message to the user's channel.
     """
     user_id = str(ctx.author.id)
-    result = collection.find_one_and_update(
+    result = keyword_collection.find_one_and_update(
         {"user_id": user_id},
         {"$pull": {"keywords": keyword}},
         return_document=pymongo.ReturnDocument.AFTER
@@ -165,7 +172,7 @@ async def list_keywords(ctx):
     """
     user_id = str(ctx.author.id)
 
-    user_doc = collection.find_one({"user_id": user_id})
+    user_doc = keyword_collection.find_one({"user_id": user_id})
 
     if user_doc and user_doc.get("keywords"):
         keywords = ', '.join(user_doc["keywords"])
@@ -183,12 +190,16 @@ async def show_help(ctx):
     :return: None. Just sends a help message to the user's channel.
     """
     embed = discord.Embed(title="Need help? Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
     embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
+    embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
     embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
     embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
     embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
+    embed.add_field(name="**🔔 Reminder Features**", value="", inline=False)
     embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
     embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
     embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
@@ -354,8 +365,6 @@ async def add_bookmark(ctx, user: discord.Member):
     # user ID of mentioned user to bookmark
     user_id_bookmark = str(user.id)
 
-    bookmarks_collection = db["bookmarks"]
-
     try:
         # If the user exists, add the new bookmark to their list (if it's not already there!)
         user_doc = bookmarks_collection.find_one({"user_id": user_id})
@@ -396,8 +405,6 @@ async def remove_bookmark(ctx, user: discord.Member):
     # user ID of mentioned user to bookmark
     user_id_bookmark = str(user.id)
 
-    bookmarks_collection = db["bookmarks"]
-
     try:
         # Remove user bookmark from list of bookmarks
         result = bookmarks_collection.update_one(
@@ -423,8 +430,6 @@ async def list_bookmarks(ctx):
     """
     user_id = str(ctx.author.id)
     
-    bookmarks_collection = db["bookmarks"]
-
     try:
         # Retrieve the user's bookmarks
         user_bookmarks = bookmarks_collection.find_one({"user_id": user_id})
