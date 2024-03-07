@@ -10,6 +10,7 @@ import openai
 import pymongo
 from pymongo import MongoClient
 
+
 # set timezone to PST for alarm functionality
 pacific_tz = pytz.timezone('America/Los_Angeles')
 
@@ -89,12 +90,15 @@ async def on_member_join(member):
     :param member: The member who just joined the server.
     """
     embed = discord.Embed(title="Welcome to the server, {member.mention}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
     embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
+    embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
     embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
     embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
     embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**🔔 Reminder Features**", value="", inline=False)
     embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
     embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
     embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
