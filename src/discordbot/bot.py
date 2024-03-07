@@ -81,22 +81,21 @@ async def on_member_join(member):
 
     :param member: The member who just joined the server.
     """
-    welcome_text = (
-        f"Welcome to the server, {member.mention}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n"
-        "Here's what I can do for you:\n\n"
-        "• `/add <keyword>` - Get notified for mentions of specific keywords.\n"
-        "• `/remove <keyword>` - Stop notifications for a keyword.\n"
-        "• `/list` - View all keywords you're tracking.\n"
-        "• `/summarize #channel-name` - Summarize messages in a channel.\n"
-        "• `/bookmark @username` - Bookmark messages from a specific user.\n"
-        "• `/remove bookmark` - Stop bookmarking messages from specific users.\n"
-        "• `/alarm_add \"time\" \"label\"` - Add a reminder for a specific time with a label.\n"
-        "• `/remove_reminder \"label\"` - Remove a reminder by its label.\n"
-        "• `/showhelp` - Show this help message again."
-    )
+    embed = discord.Embed(title="Welcome to the server, {member.mention}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
+    embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
+    embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
+    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
+    embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
+    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
+    embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
+    embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
+    embed.add_field(name="**`/showhelp`**", value="- Show this help message again.", inline=False)
+
     try:
         # send the welcome message to the new member's DM!
-        await member.send(welcome_text)
+        await member.send(embed = embed)
     except discord.Forbidden:
         # in case the bot cannot send DMs to the user, send the message to a public channel (currently setting it to general)
         general_channel = discord.utils.get(member.guild.channels, name='general')
@@ -183,20 +182,20 @@ async def show_help(ctx):
                 that "invoked" the command.
     :return: None. Just sends a help message to the user's channel.
     """
-    help_text = (
-        "Need help? Here's what I can do for you:\n\n"
-        "• `/add <keyword>` - Get notified for mentions of specific keywords.\n"
-        "• `/remove <keyword>` - Stop notifications for a keyword.\n"
-        "• `/list` - View all keywords you're tracking.\n"
-        "• `/summarize #channel-name` - Summarize messages in a channel.\n"
-        "• `/bookmark @username` - Bookmark messages from a specific user.\n"
-        "• `/remove bookmark` - Stop bookmarking messages from specific users.\n"
-        "• `/alarm_add \"time\" \"label\"` - Add a reminder for a specific time with a label.\n"
-        "• `/remove_reminder \"label\"` - Remove a reminder by its label.\n"
-        "• `/list_reminders` - List reminders by its timestamp and label.\n"
-        "• `/showhelp` - Show this help message again."
-    )
-    await ctx.send(help_text)
+    embed = discord.Embed(title="Need help? Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
+    embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
+    embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
+    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
+    embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
+    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
+    embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
+    embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
+    embed.add_field(name="**`/showhelp`**", value="- Show this help message again.", inline=False)
+
+    await ctx.send(embed = embed)
+
 
 @bot.command(name='add_reminder')
 async def add_reminder(ctx, time, *, label):
