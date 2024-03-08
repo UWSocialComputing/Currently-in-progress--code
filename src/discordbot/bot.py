@@ -51,6 +51,56 @@ async def on_ready():
     for doc in bookmarks_collection.find({}): 
         user_bookmarks[doc["user_id"]] = set(doc.get("bookmarks", []))
 
+@bot.command(name='create_private_channel')
+async def create_private_channel(ctx):
+    guild = ctx.guild
+    member = ctx.author
+
+    private_channels_collection = db["private_channels"]
+
+    existing_channel = private_channels_collection.find_one({"user_id": str(member.id)})
+
+    if existing_channel:
+        await ctx.send(f"{member.mention}, you already have a private channel.")
+        return
+
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        member: discord.PermissionOverwrite(read_messages=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True)
+    }
+
+    channel_name = f"private-{member.display_name}"
+    private_channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
+
+    private_channels_collection.insert_one({
+        "user_id": str(member.id),
+        "channel_id": str(private_channel.id)
+    })
+
+    await ctx.send(f"{member.mention}, your private channel has been created!")
+    await private_channel.send(f"Welcome, {member.mention}! This is your private channel with me.")
+    embed = discord.Embed(title=f"Welcome to your private channel, {member.display_name}!", description="Here's what I can do for you:", color=discord.Color.purple())
+    embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
+    embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
+    embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
+    embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
+    embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
+    embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
+    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
+    embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
+    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
+    embed.add_field(name="**🔔 Reminder Features**", value="", inline=False)
+    embed.add_field(name="**`/add_reminder \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
+    embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
+    embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
+    embed.add_field(name="**❓ Need Help?**", value="", inline=False)
+    embed.add_field(name="**`/showhelp`**", value="- Show this help message again.", inline=False)
+    embed.add_field(name="**`/examples`**", value="- Displays example commands you can enter.", inline=False)
+    # send the welcome message to the new member's DM!
+    await private_channel.send(embed = embed)
+
 
 @bot.event
 async def on_message(message):
@@ -70,7 +120,6 @@ async def on_message(message):
                 if user:
                     await user.send(f'Keyword "{keyword}" found in message from {message.author.display_name}: "{message.content}"\nChannel: {message.channel.name}')
                     print(f"Keyword '{keyword}' message sent to {user.name}'s DM")
-
     
     # Bookmark notification
     for user_id, bookmarks in user_bookmarks.items():
@@ -95,14 +144,18 @@ async def on_member_join(member):
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
     embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
-    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
-    embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
+    embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
     embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
+    embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
+    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
     embed.add_field(name="**🔔 Reminder Features**", value="", inline=False)
-    embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
+    embed.add_field(name="**`/add_reminder \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
     embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
     embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
+    embed.add_field(name="**❓ Need Help?**", value="", inline=False)
     embed.add_field(name="**`/showhelp`**", value="- Show this help message again.", inline=False)
+    embed.add_field(name="**`/examples`**", value="- Displays example commands you can enter.", inline=False)
 
     try:
         # send the welcome message to the new member's DM!
@@ -199,15 +252,18 @@ async def show_help(ctx):
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
     embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
-    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
-    embed.add_field(name="**`/bookmark @username`**", value="- Bookmark messages from a specific user.\n", inline=False)
+    embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
     embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
     embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
+    embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
+    embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
     embed.add_field(name="**🔔 Reminder Features**", value="", inline=False)
-    embed.add_field(name="**`/alarm_add \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
+    embed.add_field(name="**`/add_reminder \"time\" \"label\"`**", value="- Add a reminder for a specific time with a label.\n", inline=False)
     embed.add_field(name="**`/remove_reminder \"label\"`**", value="- Remove a reminder by its label.\n", inline=False)
     embed.add_field(name="**`/list_reminders`**", value="- List reminders by its timestamp and label.\n", inline=False)
+    embed.add_field(name="**❓ Need Help?**", value="", inline=False)
     embed.add_field(name="**`/showhelp`**", value="- Show this help message again.", inline=False)
+    embed.add_field(name="**`/examples`**", value="- Displays example commands you can enter.", inline=False)
 
     await ctx.send(embed = embed)
 
@@ -380,10 +436,10 @@ async def add_bookmark(ctx, user: discord.Member):
                     {"user_id": user_id},
                     {"$push": {"bookmarks": user_id_bookmark}}
                 )
-                await ctx.send(f'{user.mention} has been added to your bookmarks!')
+                await ctx.send(f'{user.display_name} has been added to your bookmarks!')
             else:
                 # If the mentioned user is already bookmarked
-                await ctx.send(f'{user.mention} is already in your bookmarks.')
+                await ctx.send(f'{user.display_name} is already in your bookmarks.')
         else:
             # If the user doesn't exist, create a new document for them
             bookmarks_collection.insert_one({"user_id": user_id, "bookmarks": [user_id_bookmark]})
@@ -424,7 +480,6 @@ async def remove_bookmark(ctx, user: discord.Member):
     except Exception as e:
         print(f"Error removing a bookmark: {e}")
 
-
 @bot.command(name='list_bookmarks')
 async def list_bookmarks(ctx):
     """Lists all the bookmarks for the user.
@@ -454,5 +509,19 @@ async def list_bookmarks(ctx):
         print(f"Error listing bookmarks: {e}")
         await ctx.send("An error occurred while listing bookmarks.")
 
+@bot.command(name='examples')
+async def examples(ctx):
+    """Lists example commands to the user.
+
+    :param ctx: Discord bot commands represents the "context" of the command.
+    :return: None. It sends a message to the user's channel with example commands they can enter.
+    """
+    embed = discord.Embed(title="Examples of Commands", color=discord.Color.blue())
+    embed.add_field(name="Keyword Tracking", value="/add keyword - Adds a keyword to track\n/remove keyword - Removes a keyword from tracking", inline=False)
+    embed.add_field(name="Bookmarking Messages", value="/add_bookmark discorduser1 - Bookmark messages from discorduser1\n/remove_bookmark discorduser1 - Removes a bookmark", inline=False)
+    embed.add_field(name="Setting Reminders", value="/add_reminder '2023-01-01 12:00' 'New Year' - Sets a reminder\n/remove_reminder 'New Year' - Removes a reminder", inline=False)
+    embed.add_field(name="Summarizing Messages", value="/summarize #general 100 - Summarizes the last 100 messages in the general channel", inline=False)
+    embed.add_field(name="Listing Commands", value="/list - Lists all keywords you are tracking\n/list_bookmarks - Lists all your bookmarks\n/list_reminders - Lists all your reminders", inline=False)
+    await ctx.send(embed=embed)
 
 bot.run(token)
