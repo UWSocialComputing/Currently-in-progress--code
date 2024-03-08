@@ -18,6 +18,7 @@ pacific_tz = pytz.timezone('America/Los_Angeles')
 load_dotenv()
 token = os.getenv('DISCORD_BOT_TOKEN')
 openai.api_key = os.getenv("OPENAI_API_KEY")
+mongo_url = os.getenv('MONGODB_URL')
 
 # configure bot intents and instance
 intents = discord.Intents.default() 
@@ -29,7 +30,6 @@ user_keywords = {}
 user_bookmarks = {}
 user_reminders = {}
 
-mongo_url = ""
 # navigating to cluster
 cluster = MongoClient(mongo_url)
 # connecting to database
@@ -87,7 +87,7 @@ async def create_private_channel(ctx):
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
     embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
     embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
-    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/remove_bookmark <discord_username>`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
     embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
     embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
     embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
@@ -145,7 +145,7 @@ async def on_member_join(member):
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
     embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
     embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
-    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/remove_bookmark <discord_username>`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
     embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
     embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
     embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
@@ -253,7 +253,7 @@ async def show_help(ctx):
     embed.add_field(name="**`/list`**", value="- View all keywords you're tracking.\n", inline=False)
     embed.add_field(name="**🔖 Bookmark Features**", value="", inline=False)
     embed.add_field(name="**`/bookmark <discord_username>`**", value="- Bookmark messages from a specific user.\n", inline=False)
-    embed.add_field(name="**`/remove bookmark`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
+    embed.add_field(name="**`/remove_bookmark <discord_username>`**", value="- Stop bookmarking messages from specific users.\n", inline=False)
     embed.add_field(name="**`/list_bookmarks`**", value="- Lists all the bookmarked users for the user.\n", inline=False)
     embed.add_field(name="**♻️ Summarize Feature**", value="", inline=False)
     embed.add_field(name="**`/summarize #channel-name`**", value="- Summarize messages in a channel.\n", inline=False)
@@ -406,7 +406,7 @@ async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 50):
         await ctx.send(f"Error summarizing messages: {str(e)}")
 
 
-@bot.command(name='add_bookmark')
+@bot.command(name='bookmark')
 async def add_bookmark(ctx, user: discord.Member):
 
     """Allows a user to add a bookmark to keep track of messages from a specific mentioned user.
@@ -518,7 +518,7 @@ async def examples(ctx):
     """
     embed = discord.Embed(title="Examples of Commands", color=discord.Color.blue())
     embed.add_field(name="Keyword Tracking", value="/add keyword - Adds a keyword to track\n/remove keyword - Removes a keyword from tracking", inline=False)
-    embed.add_field(name="Bookmarking Messages", value="/add_bookmark discorduser1 - Bookmark messages from discorduser1\n/remove_bookmark discorduser1 - Removes a bookmark", inline=False)
+    embed.add_field(name="Bookmarking Messages", value="/bookmark discorduser1 - Bookmark messages from discorduser1\n/remove_bookmark discorduser1 - Removes a bookmark", inline=False)
     embed.add_field(name="Setting Reminders", value="/add_reminder '2023-01-01 12:00' 'New Year' - Sets a reminder\n/remove_reminder 'New Year' - Removes a reminder", inline=False)
     embed.add_field(name="Summarizing Messages", value="/summarize #general 100 - Summarizes the last 100 messages in the general channel", inline=False)
     embed.add_field(name="Listing Commands", value="/list - Lists all keywords you are tracking\n/list_bookmarks - Lists all your bookmarks\n/list_reminders - Lists all your reminders", inline=False)
