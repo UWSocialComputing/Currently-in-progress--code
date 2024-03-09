@@ -10,7 +10,6 @@ import openai
 import pymongo
 from pymongo import MongoClient
 
-
 # set timezone to PST for alarm functionality
 pacific_tz = pytz.timezone('America/Los_Angeles')
 
@@ -29,6 +28,7 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 user_keywords = {}
 user_bookmarks = {}
 user_reminders = {}
+user_private_channels = {}
 
 # navigating to cluster
 cluster = MongoClient(mongo_url)
@@ -37,30 +37,38 @@ db = cluster["prioritize_bot"]
 # connecting to collection
 keyword_collection = db["keywords"]
 bookmarks_collection = db["bookmarks"]
+reminders_collection = db["reminders"]
+private_channels_collection = db["private_channels"]
 
 @bot.event
 async def on_ready():
+    """
+    Initializes bot, clearing any existing user-specific data and repopulating it from the database.
+    This includes user keywords, bookmarks, reminders, and now private channels, so that our bot starts with the current data
+    when logging in.
+    """
     print(f'Logged in as {bot.user.name}')
     bot.loop.create_task(reminder_task())
-    global user_keywords
-    global user_bookmarks
+    global user_keywords, user_bookmarks, user_reminders, user_private_channels
     user_keywords.clear()
     user_bookmarks.clear()
+    user_reminders.clear()
+    user_private_channels.clear() 
     for doc in keyword_collection.find({}):
         user_keywords[doc["user_id"]] = set(doc["keywords"])
     for doc in bookmarks_collection.find({}): 
         user_bookmarks[doc["user_id"]] = set(doc.get("bookmarks", []))
+    for doc in db["reminders"].find({}):
+        user_reminders[doc["user_id"]] = doc.get("reminders", [])
+    for doc in db["private_channels"].find({}):
+        user_private_channels[doc["user_id"]] = doc["channel_id"]
 
 @bot.command(name='create_private_channel')
 async def create_private_channel(ctx):
     guild = ctx.guild
     member = ctx.author
 
-    private_channels_collection = db["private_channels"]
-
-    existing_channel = private_channels_collection.find_one({"user_id": str(member.id)})
-
-    if existing_channel:
+    if str(member.id) in user_private_channels:
         await ctx.send(f"{member.mention}, you already have a private channel.")
         return
 
@@ -78,9 +86,14 @@ async def create_private_channel(ctx):
         "channel_id": str(private_channel.id)
     })
 
+    user_private_channels[str(member.id)] = str(private_channel.id)
+
     await ctx.send(f"{member.mention}, your private channel has been created!")
     await private_channel.send(f"Welcome, {member.mention}! This is your private channel with me.")
     embed = discord.Embed(title=f"Welcome to your private channel, {member.display_name}!", description="Here's what I can do for you:", color=discord.Color.purple())
+    embed.add_field(name="**☀️ Getting started**", value="", inline=False)
+    embed.add_field(name="**`/onboard_user`**", value="- Enter this command for guidance on how to get set up with the bot!", inline=False)
+    embed.add_field(name="**`/create_private_channel`**", value="- Creates a private channel so you can interact with the bot.", inline=False)
     embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
     embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
@@ -138,7 +151,10 @@ async def on_member_join(member):
 
     :param member: The member who just joined the server.
     """
-    embed = discord.Embed(title="Welcome to the server, {member.mention}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed = discord.Embed(title=f"Welcome to the server, {member.mention}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**☀️ Getting started**", value="", inline=False)
+    embed.add_field(name="**`/onboard_user`**", value="- Enter this command for guidance on how to get set up with the bot!", inline=False)
+    embed.add_field(name="**`/create_private_channel`**", value="- Creates a private channel so you can interact with the bot.", inline=False)
     embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
     embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
@@ -194,7 +210,6 @@ async def add_keyword(ctx, *, keyword):
         keyword_collection.insert_one({"user_id": user_id, "keywords": [keyword]})
         await ctx.send(f'Keyword "{keyword}" added to your notifications list! You will now receive alerts whenever "{keyword}" is mentioned.')
 
-
 @bot.command(name='remove')
 async def remove_keyword(ctx, *, keyword):
     """Allows a user to remove a keyword from their personal tracking list.
@@ -246,7 +261,11 @@ async def show_help(ctx):
                 that "invoked" the command.
     :return: None. Just sends a help message to the user's channel.
     """
-    embed = discord.Embed(title="Need help? Here's what I can do for you:\n\n", color=discord.Color.purple())
+    user = ctx.author
+    embed = discord.Embed(title=f"Welcome to the server, {user.display_name}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed.add_field(name="**☀️ Getting started**", value="", inline=False)
+    embed.add_field(name="**`/onboard_user`**", value="- Enter this command for guidance on how to get set up with the bot!", inline=False)
+    embed.add_field(name="**`/create_private_channel`**", value="- Creates a private channel so you can interact with the bot.", inline=False)
     embed.add_field(name="**🔑 Keyword Features**", value="", inline=False)
     embed.add_field(name="**`/add <keyword>`**\n", value="- Get notified for mentions of specific keywords.\n", inline=False)
     embed.add_field(name="**`/remove <keyword>`**\n", value="- Stop notifications for a keyword.\n", inline=False)
@@ -266,7 +285,6 @@ async def show_help(ctx):
     embed.add_field(name="**`/examples`**", value="- Displays example commands you can enter.", inline=False)
 
     await ctx.send(embed = embed)
-
 
 @bot.command(name='add_reminder')
 async def add_reminder(ctx, time, *, label):
@@ -289,7 +307,13 @@ async def add_reminder(ctx, time, *, label):
         return
     reminder_time = reminder_time.astimezone(pacific_tz)
     user_id = str(ctx.author.id)
-    reminders_collection = db["reminders"]
+    
+    # Check if the reminder label already exists for the user
+    existing_reminder = reminders_collection.find_one({"user_id": user_id, "label": label})
+    if existing_reminder:
+        await ctx.send('You already have a reminder with this label.')
+        return
+    
     reminders_collection.insert_one({
         "user_id": user_id,
         "reminder_time": reminder_time,
@@ -310,7 +334,6 @@ async def remove_reminder(ctx, label):
     :return: None. Just sends a confirmation or error message to the user's channel.
     """
     user_id = str(ctx.author.id)
-    reminders_collection = db["reminders"]
     result = reminders_collection.delete_one({"user_id": user_id, "label": label})
     if result.deleted_count > 0:
         await ctx.send(f'Reminder with label "{label}" removed.')
@@ -325,7 +348,6 @@ async def reminder_task():
 
     :return: None. It just sends reminders directly to users :D
     """
-    reminders_collection = db["reminders"]
     while True:
         now = datetime.now(pacific_tz)
         due_reminders = reminders_collection.find({"reminder_time": {"$lte": now}})
@@ -352,7 +374,6 @@ async def list_reminders(ctx):
     :return: None. It just sends a message to the user's channel with all their upcoming reminders.
     """
     user_id = str(ctx.author.id)
-    reminders_collection = db["reminders"]
     user_reminders = reminders_collection.find({"user_id": user_id})
     
     reminders_list = []
@@ -404,7 +425,6 @@ async def summarize(ctx, channel: discord.TextChannel, num_messages: int = 50):
         await ctx.send(f"Summary of the last {num_messages} messages in {channel.mention}:\n\n{summary}")
     except Exception as e:
         await ctx.send(f"Error summarizing messages: {str(e)}")
-
 
 @bot.command(name='bookmark')
 async def add_bookmark(ctx, user: discord.Member):
@@ -516,12 +536,32 @@ async def examples(ctx):
     :param ctx: Discord bot commands represents the "context" of the command.
     :return: None. It sends a message to the user's channel with example commands they can enter.
     """
-    embed = discord.Embed(title="Examples of Commands", color=discord.Color.blue())
-    embed.add_field(name="Keyword Tracking", value="/add keyword - Adds a keyword to track\n/remove keyword - Removes a keyword from tracking", inline=False)
-    embed.add_field(name="Bookmarking Messages", value="/bookmark discorduser1 - Bookmark messages from discorduser1\n/remove_bookmark discorduser1 - Removes a bookmark", inline=False)
-    embed.add_field(name="Setting Reminders", value="/add_reminder '2023-01-01 12:00' 'New Year' - Sets a reminder\n/remove_reminder 'New Year' - Removes a reminder", inline=False)
-    embed.add_field(name="Summarizing Messages", value="/summarize #general 100 - Summarizes the last 100 messages in the general channel", inline=False)
-    embed.add_field(name="Listing Commands", value="/list - Lists all keywords you are tracking\n/list_bookmarks - Lists all your bookmarks\n/list_reminders - Lists all your reminders", inline=False)
+    embed = discord.Embed(title="Examples of Commands", color=discord.Color.purple())
+    embed.add_field(name="🔑 Keyword Tracking", value="• `/add keyword` - Adds a keyword to track\n• `/remove keyword` - Removes a keyword from tracking", inline=False)
+    embed.add_field(name="🔖 Bookmarking Messages", value="• `/bookmark discorduser1` - Bookmark messages from discorduser1\n• `/remove_bookmark discorduser1` - Removes a bookmark", inline=False)
+    embed.add_field(name="🔔 Setting Reminders", value="• `/add_reminder \"2023-01-01 12:00\" \"New Year\"` - Sets a reminder for a specific time.\n• `/add_reminder \"in 1 hour\" \"Quick Meeting\"` - Sets a reminder for 1 hour from now.\n• `/remove_reminder \"New Year\"` - Removes a reminder with the label 'New Year'.", inline=False)
+    embed.add_field(name="📩 Summarizing Messages", value="• `/summarize #general 100` - Summarizes the last 100 messages in the general channel", inline=False)
+    embed.add_field(name="🖨️ Listing Commands", value="• `/list` - Lists all keywords you are tracking\n• `/list_bookmarks` - Lists all your bookmarks\n• `/list_reminders` - Lists all your reminders", inline=False)
     await ctx.send(embed=embed)
 
+@bot.command(name='onboard_user')
+async def onboard_user(ctx):
+    """
+    Onboards a new user by guiding them through setting up a private channel and introducing other bot features!
+    """
+    member = ctx.author
+    if str(member.id) in user_private_channels:
+        await ctx.send(f"{member.mention}, you already have a private channel set up! Feel free to enter /showhelp to see all commands available to use.")
+    else:
+        await ctx.send(f"{member.mention}, welcome! Before you can use the full features of this bot, you need to set up a private channel. Please enter `/create_private_channel` to do this.")
+
+    embed = discord.Embed(title="Getting Started with the Bot", description="Once you have your private channel set up, you can explore the bot's features:", color=discord.Color.purple())
+    embed.add_field(name="🔑 Keyword Notifications", value="Use `/add <keyword>` to get notified for mentions of specific keywords.", inline=False)
+    embed.add_field(name="🔖 Bookmark Messages", value="Use `/bookmark <discord_username>` to bookmark messages from a specific user.", inline=False)
+    embed.add_field(name="🔔 Set Reminders", value="Use `/add_reminder \"time\" \"label\"` to set a reminder for yourself.", inline=False)
+    embed.add_field(name="💬 Get Help", value="Use `/showhelp` to see all commands available to you.", inline=False)
+    embed.set_footer(text="Start by creating your private channel to make the most out of these features!")
+
+    await ctx.send(embed=embed)
+    
 bot.run(token)
