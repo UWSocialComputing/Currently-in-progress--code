@@ -16,8 +16,9 @@ To get started with Prioritize Bot in your server, follow these steps:
 ### Installation
 
 1. Clone the repository to your local machine or server.
-2. Install the required Python packages by running `pip install -r requirements.txt`.
-3. Set up your `.env` file with your Discord bot token, OpenAI API key, and MongoDB URL as shown below:
+2. Create a Discord account and an application with Discord's developer portal! To create a Discord bot and obtain a bot token, visit [Discord's developer portal](https://discord.com/developers/applications) and [this resource](https://discordpy.readthedocs.io/en/stable/discord.html).
+3. Install the required Python packages by running `pip install -r requirements.txt`.
+4. Set up your `.env` file with your Discord bot token, OpenAI API key, and MongoDB URL as shown below:
 
 ```plaintext
 # .env file
