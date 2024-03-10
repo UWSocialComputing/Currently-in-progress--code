@@ -37,25 +37,25 @@ After inviting the bot to your server and running it with `python bot.py`, you c
 - **/create_private_channel**: Enter this command to create a private channel where you can interact with the bot!
 - **/showhelp**: Displays all available commands.
 
-## Keyword Notifications
+## Keyword Tracker
 
 - **/add `<keyword>`**: Get notified for mentions of specific keywords.
 - **/remove `<keyword>`**: Stop notifications for a keyword.
 - **/list**: View all keywords you're tracking.
 
-## Bookmarking Messages
+## Bookmarking Users
 
 - **/bookmark `<discord_username>`**: Bookmark messages from a specific user.
 - **/remove_bookmark `<discord_username>`**: Stop bookmarking messages from specific users.
 - **/list_bookmarks**: Lists all the bookmarked users.
 
-## Setting Reminders
+## Message Response Reminders
 
 - **/add_reminder `"time" "label"`**: Add a reminder for a specific time with a label. Time format examples: `"2023-01-01 12:00"`, `"in 1 hour"`.
 - **/remove_reminder `"label"`**: Remove a reminder by its label.
 - **/list_reminders**: List reminders by its timestamp and label.
 
-## Summarizing Messages
+## Channel Summaries
 
 - **/summarize `#channel-name <# of messages>`**: Summarize messages in a channel.
 
