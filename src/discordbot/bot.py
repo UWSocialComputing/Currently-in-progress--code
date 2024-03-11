@@ -262,7 +262,7 @@ async def show_help(ctx):
     :return: None. Just sends a help message to the user's channel.
     """
     user = ctx.author
-    embed = discord.Embed(title=f"Welcome to the server, {user.display_name}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
+    embed = discord.Embed(title=f"Hi {user.display_name}! I'm Prioritize Bot, here to make your experience better!! 🎉\n\n", description="Here's what I can do for you:\n\n", color=discord.Color.purple())
     embed.add_field(name="**☀️ Getting started**", value="", inline=False)
     embed.add_field(name="**`/onboard_user`**", value="- Enter this command for guidance on how to get set up with the bot!", inline=False)
     embed.add_field(name="**`/create_private_channel`**", value="- Creates a private channel so you can interact with the bot.", inline=False)
